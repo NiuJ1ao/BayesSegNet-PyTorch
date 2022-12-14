@@ -1,7 +1,7 @@
 from torch import nn, Tensor
 from typing import List, Optional, Tuple
 
-def make_layer(
+def _make_layer(
     in_channels: int, 
     out_channels: int
 ) -> nn.Sequential:
@@ -11,7 +11,7 @@ def make_layer(
         nn.ReLU(inplace=True)
     )
 
-class EncBlock(nn.Module):
+class _EncBlock(nn.Module):
     def __init__(
         self, 
         in_channels: int, 
@@ -19,9 +19,9 @@ class EncBlock(nn.Module):
         num_layers: int
     ) -> None:
         super().__init__()
-        layers = [make_layer(in_channels, out_channels)]
+        layers = [_make_layer(in_channels, out_channels)]
         for _ in range(num_layers - 1):
-            layers += [make_layer(out_channels, out_channels)]
+            layers += [_make_layer(out_channels, out_channels)]
         self.layers = nn.Sequential(*layers)
         self.max_pool = nn.MaxPool2d(kernel_size=2, stride=2, return_indices=True)
         
@@ -30,7 +30,7 @@ class EncBlock(nn.Module):
         x, indices = self.max_pool(x)
         return x, indices
     
-class BayesEncBlock(EncBlock):
+class _BayesEncBlock(_EncBlock):
     def __init__(
         self, 
         in_channels: int, 
@@ -38,14 +38,14 @@ class BayesEncBlock(EncBlock):
         num_layers: int
     ) -> None:
         super().__init__(in_channels, out_channels, num_layers)
-        self.dropout = nn.Dropout2d(0.5, True)
+        self.dropout = nn.Dropout2d(0.5, inplace=False)
         
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         x, indices = super().forward(x)
         x = self.dropout(x)
         return x, indices
     
-class DecBlock(nn.Module):
+class _DecBlock(nn.Module):
     def __init__(
         self, 
         in_channels: int, 
@@ -56,16 +56,20 @@ class DecBlock(nn.Module):
         self.max_unpool = nn.MaxUnpool2d(kernel_size=2, stride=2)
         layers = []
         for _ in range(num_layers - 1):
-            layers += [make_layer(in_channels, in_channels)]
-        layers += [make_layer(in_channels, out_channels)]
+            layers += [_make_layer(in_channels, in_channels)]
+        layers += [_make_layer(in_channels, out_channels)]
         self.layers = nn.Sequential(*layers)
         
-    def forward(self, x: Tensor, indices: Tensor, output_size: Optional[List[int]] = None) -> Tensor:
+    def forward(
+        self, x: Tensor, 
+        indices: Tensor, 
+        output_size: Optional[List[int]] = None
+    ) -> Tensor:
         x = self.max_unpool(x, indices, output_size)
         x = self.layers(x)
         return x
     
-class BayesDecBlock(DecBlock):
+class _BayesDecBlock(_DecBlock):
     def __init__(
         self, 
         in_channels: int, 
@@ -73,9 +77,14 @@ class BayesDecBlock(DecBlock):
         num_layers: int
     ) -> None:
         super().__init__(in_channels, out_channels, num_layers)
-        self.dropout = nn.Dropout2d(0.5, True)
+        self.dropout = nn.Dropout2d(0.5, inplace=False)
         
-    def forward(self, x: Tensor, indices: Tensor, output_size: Optional[List[int]] = None) -> Tensor:
+    def forward(
+        self, 
+        x: Tensor, 
+        indices: Tensor, 
+        output_size: Optional[List[int]] = None
+    ) -> Tensor:
         x = super().forward(x, indices, output_size)
         x = self.dropout(x)
         return x
@@ -83,17 +92,17 @@ class BayesDecBlock(DecBlock):
 class SegNet(nn.Module):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__()
-        self.encoder0 = EncBlock(in_channels, 64, 2)
-        self.encoder1 = EncBlock(64, 128, 2)
-        self.encoder2 = EncBlock(128, 256, 3)
-        self.encoder3 = EncBlock(256, 512, 3)
-        self.encoder4 = EncBlock(512, 512, 3)
+        self.encoder0 = _EncBlock(in_channels, 64, 2)
+        self.encoder1 = _EncBlock(64, 128, 2)
+        self.encoder2 = _EncBlock(128, 256, 3)
+        self.encoder3 = _EncBlock(256, 512, 3)
+        self.encoder4 = _EncBlock(512, 512, 3)
         
-        self.decoder4 = DecBlock(512, 512, 3)
-        self.decoder3 = DecBlock(512, 256, 3)
-        self.decoder2 = DecBlock(256, 128, 3)
-        self.decoder1 = DecBlock(128, 64, 2)
-        self.decoder0 = DecBlock(64, 64, 1)
+        self.decoder4 = _DecBlock(512, 512, 3)
+        self.decoder3 = _DecBlock(512, 256, 3)
+        self.decoder2 = _DecBlock(256, 128, 3)
+        self.decoder1 = _DecBlock(128, 64, 2)
+        self.decoder0 = _DecBlock(64, 64, 1)
         
         self.conv = nn.Conv2d(64, out_channels, kernel_size=3, padding=1)
         self.softmax = nn.Softmax2d()
@@ -122,11 +131,11 @@ class SegNet(nn.Module):
 class BayesEncoderSegNet(SegNet):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__(in_channels, out_channels)
-        self.encoder0 = BayesEncBlock(in_channels, 64, 2)
-        self.encoder1 = BayesEncBlock(64, 128, 2)
-        self.encoder2 = BayesEncBlock(128, 256, 3)
-        self.encoder3 = BayesEncBlock(256, 512, 3)
-        self.encoder4 = BayesEncBlock(512, 512, 3)
+        self.encoder0 = _BayesEncBlock(in_channels, 64, 2)
+        self.encoder1 = _BayesEncBlock(64, 128, 2)
+        self.encoder2 = _BayesEncBlock(128, 256, 3)
+        self.encoder3 = _BayesEncBlock(256, 512, 3)
+        self.encoder4 = _BayesEncBlock(512, 512, 3)
         
 # class BayesDecoderSegNet(SegNet):
 #     def __init__(self, in_channels: int, out_channels: int) -> None:
@@ -140,21 +149,21 @@ class BayesEncoderSegNet(SegNet):
 class BayesCenterSegNet(SegNet):
     def __init__(self, in_channels: int, out_channels: int) -> None:
         super().__init__(in_channels, out_channels)
-        self.encoder2 = BayesEncBlock(128, 256, 3)
-        self.encoder3 = BayesEncBlock(256, 512, 3)
-        self.encoder4 = BayesEncBlock(512, 512, 3)
+        self.encoder2 = _BayesEncBlock(128, 256, 3)
+        self.encoder3 = _BayesEncBlock(256, 512, 3)
+        self.encoder4 = _BayesEncBlock(512, 512, 3)
         
-        self.decoder4 = BayesDecBlock(512, 512, 3)
-        self.decoder3 = BayesDecBlock(512, 256, 3)
-        self.decoder2 = BayesDecBlock(256, 128, 3)
+        self.decoder4 = _BayesDecBlock(512, 512, 3)
+        self.decoder3 = _BayesDecBlock(512, 256, 3)
+        self.decoder2 = _BayesDecBlock(256, 128, 3)
         
 # class BayesEncoderDecoder(SegNet):
 #     def __init__(self, in_channels: int, out_channels: int) -> None:
-#         self.encoder0 = BayesEncBlock(in_channels, 64, 2)
-#         self.encoder1 = BayesEncBlock(64, 128, 2)
-#         self.encoder2 = BayesEncBlock(128, 256, 3)
-#         self.encoder3 = BayesEncBlock(256, 512, 3)
-#         self.encoder4 = BayesEncBlock(512, 512, 3)
+#         self.encoder0 = _BayesEncBlock(in_channels, 64, 2)
+#         self.encoder1 = _BayesEncBlock(64, 128, 2)
+#         self.encoder2 = _BayesEncBlock(128, 256, 3)
+#         self.encoder3 = _BayesEncBlock(256, 512, 3)
+#         self.encoder4 = _BayesEncBlock(512, 512, 3)
         
 #         self.decoder4 = BayesDecBlock(512, 512, 3)
 #         self.decoder3 = BayesDecBlock(512, 256, 3)

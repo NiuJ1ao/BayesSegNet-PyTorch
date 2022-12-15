@@ -162,7 +162,3 @@ def median_freq_balancing(dataloader, num_classes):
     med = np.median(freq)
 
     return med / freq
-
-def pixel_accuracy(y_logit, y_label):
-    y_pred = torch.argmax(y_logit, 1, keepdim=False)
-    return (y_pred == y_label.view_as(y_pred)).float().cpu().mean()

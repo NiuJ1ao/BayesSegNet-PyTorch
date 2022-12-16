@@ -1,14 +1,15 @@
 import torch
+import argparse
 import numpy as np
 from torch import nn
-import matplotlib.pyplot as plt
-from torchmetrics import JaccardIndex, Accuracy
-from torch.optim import AdamW
 from camvid import CamVid
-from model import BayesCenterSegNet
-from utils import PILToLongTensor, to_numpy
-from torch.utils.data import DataLoader
+from torch.optim import AdamW
+import matplotlib.pyplot as plt
 from torchvision import transforms
+from model import BayesCenterSegNet
+from torch.utils.data import DataLoader
+from utils import PILToLongTensor, to_numpy
+from torchmetrics import Accuracy, JaccardIndex
 
 def train_step(model, dataloader, optimizer, criterion, device):
     logs = []
@@ -34,7 +35,6 @@ def evaluate(model, dataloader, metrics, device, use_dropout=True):
         model.eval()
     
     with torch.no_grad():
-        accuracy, iou = 0, 0
         for X, y in dataloader:
             X, y = X.to(device), y.to(device)
             
@@ -50,13 +50,13 @@ def evaluate(model, dataloader, metrics, device, use_dropout=True):
         
     return np.array([to_numpy(metric.compute()) for metric in metrics])
 
-def main():
+def main(args):
     lr = 5e-4
     weight_decay = 5e-4
     epochs = 500
     batch_size = 5
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    data_root = "/mnt/e/data/CamVid/SegNet-Tutorial/CamVid"
+    device = args.device
+    data_root = args.data_path
     
     transform = transforms.Compose([
         transforms.Resize((360, 480)),
@@ -81,6 +81,7 @@ def main():
     
     model = BayesCenterSegNet(in_channels=3, out_channels=12)
     model.to(device)
+    print(model)
     optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     criterion = nn.NLLLoss(weight=class_weights, ignore_index=11)
     metrics = [
@@ -123,4 +124,9 @@ def main():
     plt.savefig("val_bayessegnet")
     
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data-path", type=str, default="/data2/users/yn621/SegNet-Tutorial/CamVid", help="data directory")
+    parser.add_argument("--device", type=str, default="cuda:0", help="device")
+    args = parser.parse_args()
+    
+    main(args)

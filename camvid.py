@@ -71,6 +71,7 @@ class CamVid(vision.VisionDataset):
         return img, target
         
 if __name__ == "__main__":
+    import torch
     from utils import PILToLongTensor, LongTensorToRGBPIL, batch_transform, imshow_batch
     from torch.utils.data import DataLoader
     from torchvision import transforms
@@ -86,7 +87,7 @@ if __name__ == "__main__":
         PILToLongTensor()
     ])
 
-    train_data = CamVid("/mnt/e/data/CamVid/SegNet-Tutorial/CamVid", "train", 
+    train_data = CamVid("/data2/users/yn621/SegNet-Tutorial/CamVid", "train", 
                         transform=transform, target_transform=target_transform)
     train_loader = DataLoader(train_data, 5)
 
@@ -107,3 +108,7 @@ if __name__ == "__main__":
     ])
     color_labels = batch_transform(labels, label_to_rgb)
     imshow_batch(images, color_labels)
+    
+    print(train_data[0][0].shape)
+    imgs = torch.stack([img_t for img_t, _ in train_data], dim=3)
+    print(torch.mean(imgs.reshape(3, -1), dim=-1), torch.std(imgs.reshape(3, -1), dim=-1))

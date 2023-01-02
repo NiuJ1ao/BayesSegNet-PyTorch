@@ -1,3 +1,8 @@
 *.pyc
 *.png
 *.log
+*.out
+metric/
+bayesianize/
+.vscode/
+*.sh

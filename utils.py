@@ -122,7 +122,7 @@ def imshow_batch(images, labels):
 
     plt.show()
 
-def median_freq_balancing(dataloader, num_classes):
+def median_freq_balancing(dataloader, num_classes, device):
     """Computes class weights using median frequency balancing as described
     in https://arxiv.org/abs/1411.4734:
         w_class = median_freq / freq_class,
@@ -161,4 +161,4 @@ def median_freq_balancing(dataloader, num_classes):
     freq = class_count / total
     med = np.median(freq)
 
-    return med / freq
+    return torch.tensor(med / freq, dtype=torch.float, device=device)

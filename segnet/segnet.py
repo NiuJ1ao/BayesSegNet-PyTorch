@@ -1,5 +1,8 @@
 from torch import nn, Tensor
 from typing import List, Optional, Tuple
+from torchvision.models import vgg16, VGG16_Weights
+
+__all__ = ["SegNet", "BayesSegNet"]
 
 def _make_layer(
     in_channels: int, 
@@ -90,7 +93,7 @@ class BayesDecBlock(DecBlock):
         return x
 
 class SegNet(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int) -> None:
+    def __init__(self, in_channels: int, out_channels: int, vgg_encoder: bool = True) -> None:
         super().__init__()
         self.encoder0 = EncBlock(in_channels, 64, 2)
         self.encoder1 = EncBlock(64, 128, 2)
@@ -106,6 +109,22 @@ class SegNet(nn.Module):
         
         self.conv = nn.Conv2d(64, out_channels, kernel_size=3, padding=1)
         self.softmax = nn.Softmax2d()
+        
+        if vgg_encoder:
+            self._init_vgg16_encoder()
+    
+    def _init_vgg16_encoder(self):
+        vgg = vgg16(weights=VGG16_Weights.DEFAULT)
+        params = []
+        for module in vgg.modules():
+            if isinstance(module, nn.Conv2d):
+                params += [module.state_dict()]
+        
+        idx = 0
+        for name, module in self.named_modules():
+            if isinstance(module, nn.Conv2d) and name.startswith("encoder"):
+                module.load_state_dict(params[idx])
+                idx += 1
         
     def forward(self, x: Tensor) -> Tensor:
         dim0 = x.size()
@@ -127,28 +146,10 @@ class SegNet(nn.Module):
         x = self.conv(x)
         x = self.softmax(x)
         return x
-    
-class BayesEncoderSegNet(SegNet):
-    def __init__(self, in_channels: int, out_channels: int) -> None:
-        super().__init__(in_channels, out_channels)
-        self.encoder0 = BayesEncBlock(in_channels, 64, 2)
-        self.encoder1 = BayesEncBlock(64, 128, 2)
-        self.encoder2 = BayesEncBlock(128, 256, 3)
-        self.encoder3 = BayesEncBlock(256, 512, 3)
-        self.encoder4 = BayesEncBlock(512, 512, 3)
         
-# class BayesDecoderSegNet(SegNet):
-#     def __init__(self, in_channels: int, out_channels: int) -> None:
-#         super().__init__(in_channels, out_channels)
-#         self.decoder4 = BayesDecBlock(512, 512, 3)
-#         self.decoder3 = BayesDecBlock(512, 256, 3)
-#         self.decoder2 = BayesDecBlock(256, 128, 3)
-#         self.decoder1 = BayesDecBlock(128, 64, 2)
-#         self.decoder0 = BayesDecBlock(64, 64, 1)
-        
-class BayesCenterSegNet(SegNet):
-    def __init__(self, in_channels: int, out_channels: int) -> None:
-        super().__init__(in_channels, out_channels)
+class BayesSegNet(SegNet):
+    def __init__(self, in_channels: int, out_channels: int, vgg_encoder: bool = True) -> None:
+        super().__init__(in_channels, out_channels, False)
         self.encoder2 = BayesEncBlock(128, 256, 3)
         self.encoder3 = BayesEncBlock(256, 512, 3)
         self.encoder4 = BayesEncBlock(512, 512, 3)
@@ -157,20 +158,6 @@ class BayesCenterSegNet(SegNet):
         self.decoder3 = BayesDecBlock(512, 256, 3)
         self.decoder2 = BayesDecBlock(256, 128, 3)
         
-# class BayesEncoderDecoder(SegNet):
-#     def __init__(self, in_channels: int, out_channels: int) -> None:
-#         self.encoder0 = BayesEncBlock(in_channels, 64, 2)
-#         self.encoder1 = BayesEncBlock(64, 128, 2)
-#         self.encoder2 = BayesEncBlock(128, 256, 3)
-#         self.encoder3 = BayesEncBlock(256, 512, 3)
-#         self.encoder4 = BayesEncBlock(512, 512, 3)
-        
-#         self.decoder4 = BayesDecBlock(512, 512, 3)
-#         self.decoder3 = BayesDecBlock(512, 256, 3)
-#         self.decoder2 = BayesDecBlock(256, 128, 3)
-#         self.decoder1 = BayesDecBlock(128, 64, 2)
-#         self.decoder0 = BayesDecBlock(64, out_channels, 2)
-
-if __name__ == "__main__":
-    model = BayesCenterSegNet(3, 10)
-    print(model)
+        if vgg_encoder:
+            self._init_vgg16_encoder()
+    

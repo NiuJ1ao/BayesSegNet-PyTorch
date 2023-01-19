@@ -71,15 +71,18 @@ class CamVid(vision.VisionDataset):
         return img, target
         
 if __name__ == "__main__":
+    #%%
     import torch
-    from utils import PILToLongTensor, LongTensorToRGBPIL, batch_transform, imshow_batch
+    from utils import LocalContrastNormalisation, LongTensorToRGBPIL, PILToLongTensor, batch_transform, imshow_batch
     from torch.utils.data import DataLoader
     from torchvision import transforms
     from PIL import Image
+    from camvid import CamVid
 
     transform = transforms.Compose([
         transforms.Resize((360, 480)),
-        transforms.ToTensor()
+        transforms.ToTensor(),
+        LocalContrastNormalisation(3, 0, 1)
     ])
 
     target_transform = transforms.Compose([
@@ -99,16 +102,22 @@ if __name__ == "__main__":
 
     # Get a batch of samples to display
     images, labels = next(iter(train_loader))
+    print(images.shape, labels.shape)
+    print(images.min(), images.max())
+    # assert False
 
     # Show a batch of samples and labels
     print("Close the figure window to continue...")
     label_to_rgb = transforms.Compose([
+        # transforms.ToPILImage(),
         LongTensorToRGBPIL(class_encoding),
         transforms.ToTensor()
     ])
     color_labels = batch_transform(labels, label_to_rgb)
     imshow_batch(images, color_labels)
     
-    print(train_data[0][0].shape)
-    imgs = torch.stack([img_t for img_t, _ in train_data], dim=3)
-    print(torch.mean(imgs.reshape(3, -1), dim=-1), torch.std(imgs.reshape(3, -1), dim=-1))
+    # print(train_data[0][0].shape)
+    # imgs = torch.stack([img_t for img_t, _ in train_data], dim=3)
+    # print(torch.mean(imgs.reshape(3, -1), dim=-1), torch.std(imgs.reshape(3, -1), dim=-1))
+
+# %%

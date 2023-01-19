@@ -1,4 +1,5 @@
 # A PyTorch implementation of Bayesian SegNet
+This repository includes the PyTorch implementation of SegNet and Bayes SegNet.
 
 ## Requirements
 TBD
@@ -6,9 +7,9 @@ TBD
 ## Data
 The models are tested on the CamVid dataset from [SegNet-Tutorial](https://github.com/alexgkendall/SegNet-Tutorial).
 
-## Usage
+## Train Bayes SegNet
 ```
-python train.py --model <SegNet|BayesSegNet> --data-path <Path to CamVid dataset> --device <cpu|cuda:x>
+python train.py --data-path <Path to CamVid dataset> --device <cpu|cuda:x>
 ```
 
 ## Performance on CamVid dataset

@@ -97,7 +97,7 @@ def main(args):
     class_weights = median_freq_balancing(train_loader, 12, device=device)
     class_weights[-1] = 0.0
     
-    model = getattr(segnet, args.model)(in_channels=3, out_channels=12, vgg_encoder=True)
+    model = segnet.BayesSegNet(in_channels=3, out_channels=12, vgg_encoder=True)
     model.to(device)
     print(model)
     # optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -138,7 +138,7 @@ def main(args):
     for ax in [ax1, ax2]:
         ax.legend()
         ax.set_xlabel("batch")
-    plt.savefig("train_segnet")
+    plt.savefig(f"train_bayessegnet")
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
     ax1.plot(np.arange(val_logs.shape[0]), val_logs[:, 0], 'r-', label='acc')
@@ -146,11 +146,10 @@ def main(args):
     for ax in [ax1, ax2]:
         ax.legend()
         ax.set_xlabel("epoch")
-    plt.savefig("val_segnet")
+    plt.savefig(f"val_bayessegnet")
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="SegNet", choices=["SegNet", "BayesSegNet"])
     parser.add_argument("--data-path", type=str, default="/vol/bitbucket/yn621/data/CamVid", help="data directory")
     parser.add_argument("--device", type=str, default="cuda:0", help="device")
     args = parser.parse_args()

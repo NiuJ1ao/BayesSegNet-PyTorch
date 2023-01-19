@@ -1,6 +1,5 @@
-# Functions in this file are copied from https://github.com/davidtvs/PyTorch-ENet/
-
 import torch
+from torch import nn
 import numpy as np
 import torchvision
 from PIL import Image
@@ -11,8 +10,27 @@ from torchvision.transforms import ToPILImage
 def to_numpy(x):
     return x.detach().cpu().numpy()
 
+class LocalContrastNormalisation(object):
+    def __init__(self, kernel_size=3, mean=0, std=1):
+        super().__init__()
+        self.conv2d = nn.Conv2d(1, 1, kernel_size=kernel_size, padding=1, bias=False)
+        weight_size = self.conv2d.weight.size()
+        kernel = torch.normal(mean=mean, std=std, size=weight_size)
+        kernel /= torch.sum(kernel) # normalise kernel
+        self.conv2d.weight = nn.Parameter(kernel, requires_grad=False)
+        
+    def __call__(self, x):
+        v = x - torch.sum(torch.vstack([self.conv2d(i.unsqueeze(0)) for i in x]), dim=0, keepdim=True)
+        sigma = torch.sum(torch.vstack([self.conv2d(torch.square(i).unsqueeze(0)) for i in v]), dim=0).sqrt()
+        c = torch.mean(sigma)
+        y = v / torch.maximum(sigma, c)
+        assert y.size() == x.size()
+        return y
+
 class PILToLongTensor(object):
-    """Converts a ``PIL Image`` to a ``torch.LongTensor``.
+    """https://github.com/davidtvs/PyTorch-ENet/
+    
+    Converts a ``PIL Image`` to a ``torch.LongTensor``.
     Code adapted from: http://pytorch.org/docs/master/torchvision/transforms.html?highlight=totensor
     """
 
@@ -41,10 +59,12 @@ class PILToLongTensor(object):
         img = img.view(pic.size[1], pic.size[0], nchannel)
 
         # Convert to long and squeeze the channels
-        return img.transpose(0, 1).transpose(0, 2).contiguous().long().squeeze()
+        return img.transpose(0, 1).transpose(0, 2).contiguous().long().squeeze_()
 
 class LongTensorToRGBPIL(object):
-    """Converts a ``torch.LongTensor`` to a ``PIL image``.
+    """https://github.com/davidtvs/PyTorch-ENet/
+    
+    Converts a ``torch.LongTensor`` to a ``PIL image``.
     The input is a ``torch.LongTensor`` where each pixel's value identifies the
     class.
     Keyword arguments:
@@ -62,7 +82,7 @@ class LongTensorToRGBPIL(object):
         A ``PIL.Image``.
         """
         # Check if label_tensor is a LongTensor
-        if not isinstance(tensor, torch.LongTensor):
+        if not isinstance(tensor, torch.Tensor):
             raise TypeError("label_tensor should be torch.LongTensor. Got {}"
                             .format(type(tensor)))
         # Check if encoding is a ordered dictionary
@@ -87,7 +107,9 @@ class LongTensorToRGBPIL(object):
         return ToPILImage()(color_tensor)
     
 def batch_transform(batch, transform):
-    """Applies a transform to a batch of samples.
+    """https://github.com/davidtvs/PyTorch-ENet/
+    
+    Applies a transform to a batch of samples.
     Keyword arguments:
     - batch (): a batch os samples
     - transform (callable): A function/transform to apply to ``batch``
@@ -103,7 +125,9 @@ def batch_transform(batch, transform):
 
 
 def imshow_batch(images, labels):
-    """Displays two grids of images. The top grid displays ``images``
+    """https://github.com/davidtvs/PyTorch-ENet/
+    
+    Displays two grids of images. The top grid displays ``images``
     and the bottom grid ``labels``
     Keyword arguments:
     - images (``Tensor``): a 4D mini-batch tensor of shape
@@ -123,7 +147,9 @@ def imshow_batch(images, labels):
     plt.show()
 
 def median_freq_balancing(dataloader, num_classes, device):
-    """Computes class weights using median frequency balancing as described
+    """https://github.com/davidtvs/PyTorch-ENet/
+    
+    Computes class weights using median frequency balancing as described
     in https://arxiv.org/abs/1411.4734:
         w_class = median_freq / freq_class,
     where freq_class is the number of pixels of a given class divided by

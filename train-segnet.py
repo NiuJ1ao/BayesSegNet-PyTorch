@@ -67,9 +67,8 @@ def evaluate(model, dataloader, metrics, device, k=10, use_dropout=True):
 
 def main(args):
     lr = 1e-3
-    weight_decay = 5e-4
     momentum = 0.9
-    epochs = 1000
+    epochs = 500
     batch_size = 5
     best_acc = 0
     device = args.device
@@ -99,11 +98,11 @@ def main(args):
     class_weights = median_freq_balancing(train_loader, 12, device=device)
     class_weights[-1] = 0.0
     
-    model = segnet.BayesSegNet(in_channels=3, out_channels=12, vgg_encoder=True)
+    model = segnet.SegNet(in_channels=3, out_channels=12, vgg_encoder=True)
     model.to(device)
     print(model)
     # optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
-    optimizer = SGD(model.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
+    optimizer = SGD(model.parameters(), lr=lr, momentum=momentum)
     criterion = nn.NLLLoss(weight=class_weights, ignore_index=11)
     metrics = [
         Accuracy(task="multiclass", num_classes=12, ignore_index=11, average="none").to(device),
@@ -115,7 +114,7 @@ def main(args):
         print("Epoch {}, last mini-batch nll={}, acc={}".format(i+1, train_log[-1][0], train_log[-1][1]))
         train_logs.append(train_log)
         
-        val_log = evaluate(model, val_loader, metrics, device, k=10, use_dropout=True)
+        val_log = evaluate(model, val_loader, metrics, device, k=1, use_dropout=False)
         print("Epoch {}, val acc={}, iou={}".format(i+1, val_log[0], val_log[1]))
         val_logs.append(val_log[np.newaxis])
         
@@ -128,7 +127,7 @@ def main(args):
     train_logs, val_logs = np.concatenate(train_logs, axis=0), np.concatenate(val_logs, axis=0)
     
     model.load_state_dict(best_model)
-    test_log = evaluate(model, test_loader, metrics, device, k=50, use_dropout=True)
+    test_log = evaluate(model, test_loader, metrics, device, k=1, use_dropout=False)
     print("Epoch {}, test acc={}, iou={}".format(best_epoch, test_log[0], test_log[1]))
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
@@ -137,7 +136,7 @@ def main(args):
     for ax in [ax1, ax2]:
         ax.legend()
         ax.set_xlabel("batch")
-    plt.savefig(f"figures/train_bayessegnet_best_acc")
+    plt.savefig(f"figures/train_segnet")
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
     ax1.plot(np.arange(val_logs.shape[0]), val_logs[:, 0], 'r-', label='acc')
@@ -145,7 +144,7 @@ def main(args):
     for ax in [ax1, ax2]:
         ax.legend()
         ax.set_xlabel("epoch")
-    plt.savefig(f"figures/val_bayessegnet_best_acc")
+    plt.savefig(f"figures/val_segnet")
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
